@@ -1,0 +1,129 @@
+#!/bin/bash
+
+
+# config 
+
+dirXampp='/opt/lampp'
+dirHost='/etc/hosts'
+dirVhost='/opt/lampp/etc/extra/httpd-vhosts.conf'
+restartXampp=true
+dtDomain='.com'
+dtIndex='index.php'
+
+
+RandIP() {
+  random=$$
+  random2=$$
+  one=$(($random % $1))
+  two=$(($random2 % $2))
+  ip="127.0.$one.$two"
+}
+if [ -z $1 ]; then
+  echo -e "\e[31mSorry you don't input any directory\e[0m"
+  echo -e '\t\e[33mExample\e[0m: vhost ~/path/to/file'
+  exit
+fi
+
+
+case $1 in 
+
+  '-h' | 'help')
+    echo 'help'
+    echo -e '
+    add virtual host on xampp
+    custom default \e[33m.config/vhost.conf\e[0m'
+    echo -e "
+    1-get the directory project 
+    \t\t\t\e[33msudo vhost ~/php/any \e[0m
+    2-add domain with .test or .com or any
+    \t\t\t(default \e[31m$dtDomain\e[0m)
+    3-enter the direcotry index
+    and successfully we added"
+    
+    exit
+  ;;
+
+  '-v' | 'version')
+    echo 'version:'$version
+    exit
+    ;;
+
+esac
+
+
+if [ $EUID -ne 0 ]; then
+  echo -e '\e[31mPlease Run Script as \e\e[32mRoot\e\e[0m'
+  exit
+
+fi
+RandIP 9 199
+# echo to /etc/hosts
+echo -e '\e[33mCreating the Virtual host...\e[0m'
+read -p "Domain Virutal host:" domain
+if [ -z $domain ]; then
+  echo 'Sorry Require Domain'
+  exit
+fi
+
+# if add domain
+echo $dtDomain
+if [[ $domain != *"."* ]]; then
+  echo -e $dtDomain
+  domain+="$dtDomain"
+  echo "add $dtDomain to domain"
+fi
+echo -e "\e[35m default is index.php\e[0m"
+read -p "Enter Directory Index:" dirIndex
+
+if [ -z $dirIndex ]; then
+  dirIndex='index.php'
+  echo 'Add the DirectoryIndex'
+fi
+# echo to /opt/lampp/etc/extra/httpd-vhosts.conf
+echo -e "\e[31m------------------------------\e[0m"
+echo -e "The Directory: \e[32m$1\e[0m"
+echo -e "The Domain:\e[32m" "$domain\e[0m"
+echo -e 'The Direcory index:\e[32m' $dirIndex '\e[0m'
+echo -e "The IP:\e[32m $ip:80\e[0m"
+echo -e "\e[31m------------------------------\e[0m"
+template="
+\n
+<VirtualHost $ip:80>\n
+  DocumentRoot '$1'\n
+  DirectoryIndex $dirIndex\n
+  ServerName $domain\n
+  ServerAdmin i74ifa@gmail.com\n
+\n
+  <Directory '$1'>\n
+	Options All\n
+	AllowOverride All\n
+	Require all granted\n
+  </Directory>\n
+</VirtualHost>\n
+"
+
+# echo -e "Default \e[32mGreen"
+echo -e "Continue[\e[32my\e[0m-\e[31mn\e[0m]" ; read -p ':' yesOrNo
+
+
+if [[ $yesOrNo == 'n' || $yesOrNo == 'N' ]]; then
+  echo -e '\e[31mCanceled.\e[0m'
+  exit
+fi
+
+echo "Creating..."
+host="$ip      $domain"
+sudo echo -e "\n$host" >> $dirHost
+
+sudo echo -e $template >> $dirVhost
+
+
+
+if $restartXampp; then
+  echo -e "\e[32mDone\e[0m \n\e[33mrestarting Server\e[0m"
+  $dirXampp/lampp restart
+
+else
+  echo -e "\e[32mDone\e[0m \n\e[31myou want restart Server\e[0m"
+
+fi
